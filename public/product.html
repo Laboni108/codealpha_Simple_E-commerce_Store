@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Product Details — ShopEasy</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="logo" href="/index.html">ShopEasy</a>
+    <nav class="nav-links" id="nav-right"></nav>
+  </div>
+</header>
+
+<main>
+  <div id="product-container">
+    <p class="empty-state">Loading product…</p>
+  </div>
+</main>
+
+<footer class="site-footer">Built with Express.js &amp; vanilla JS — a CodeAlpha e-commerce demo.</footer>
+
+<script src="/js/main.js"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const productId = params.get('id');
+
+  async function loadProduct() {
+    const container = document.getElementById('product-container');
+    if (!productId) {
+      container.innerHTML = '<p class="empty-state">No product specified.</p>';
+      return;
+    }
+    try {
+      const { product } = await api.get(`/api/products/${productId}`);
+      document.title = `${product.name} — ShopEasy`;
+
+      container.innerHTML = `
+        <div class="product-detail">
+          <img src="${product.image}" alt="${escapeHtml(product.name)}" />
+          <div>
+            <span class="category-tag">${escapeHtml(product.category)}</span>
+            <h1>${escapeHtml(product.name)}</h1>
+            <p class="price">${formatMoney(product.price)}</p>
+            <p>${escapeHtml(product.description)}</p>
+            <p class="stock-note">${product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}</p>
+            <div id="alert-area"></div>
+            <div class="qty-row">
+              <label for="qty-input">Qty:</label>
+              <input type="number" id="qty-input" value="1" min="1" max="${product.stock}" ${product.stock === 0 ? 'disabled' : ''}/>
+              <button class="btn" id="add-btn" ${product.stock === 0 ? 'disabled' : ''}>Add to cart</button>
+            </div>
+            <a href="/index.html" class="btn btn-outline btn-sm">&larr; Back to products</a>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('add-btn').addEventListener('click', async () => {
+        const qty = Number(document.getElementById('qty-input').value) || 1;
+        const alertArea = document.getElementById('alert-area');
+        try {
+          await api.post('/api/cart', { productId: product.id, qty });
+          alertArea.innerHTML = '<div class="alert alert-success">Added to cart!</div>';
+          await renderNav();
+        } catch (err) {
+          alertArea.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+        }
+      });
+    } catch (err) {
+      container.innerHTML = `<p class="empty-state">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  loadProduct();
+</script>
+</body>
+</html>

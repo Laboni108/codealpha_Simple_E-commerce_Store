@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign Up — ShopEasy</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="logo" href="/index.html">ShopEasy</a>
+    <nav class="nav-links" id="nav-right"></nav>
+  </div>
+</header>
+
+<main>
+  <div class="form-card">
+    <h1>Create Account</h1>
+    <div id="alert-area"></div>
+    <form id="register-form">
+      <div class="form-group">
+        <label for="name">Full name</label>
+        <input type="text" id="name" required />
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" required />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" minlength="6" required />
+      </div>
+      <button type="submit" class="btn">Sign Up</button>
+    </form>
+    <p class="form-footer">Already have an account? <a href="/login.html">Log in</a></p>
+  </div>
+</main>
+
+<footer class="site-footer">Built with Express.js &amp; vanilla JS — a CodeAlpha e-commerce demo.</footer>
+
+<script src="/js/main.js"></script>
+<script>
+  document.getElementById('register-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const alertArea = document.getElementById('alert-area');
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    try {
+      await api.post('/api/auth/register', { name, email, password });
+      window.location.href = '/index.html';
+    } catch (err) {
+      alertArea.innerHTML = `<div class="alert alert-error">${escapeHtml(err.message)}</div>`;
+    }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Your Orders — ShopEasy</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="logo" href="/index.html">ShopEasy</a>
+    <nav class="nav-links" id="nav-right"></nav>
+  </div>
+</header>
+
+<main>
+  <h1>Your Orders</h1>
+  <div id="alert-area"></div>
+  <div id="orders-container">
+    <p class="empty-state">Loading orders…</p>
+  </div>
+</main>
+
+<footer class="site-footer">Built with Express.js &amp; vanilla JS — a CodeAlpha e-commerce demo.</footer>
+
+<script src="/js/main.js"></script>
+<script>
+  async function loadOrders() {
+    const container = document.getElementById('orders-container');
+    const placedId = new URLSearchParams(window.location.search).get('placed');
+    if (placedId) {
+      document.getElementById('alert-area').innerHTML =
+        `<div class="alert alert-success">Order #${escapeHtml(placedId)} placed successfully! Thank you for your purchase.</div>`;
+    }
+
+    try {
+      const { user } = await api.get('/api/auth/me');
+      if (!user) {
+        container.innerHTML = '<p class="empty-state">Please <a href="/login.html?next=/orders.html">log in</a> to view your orders.</p>';
+        return;
+      }
+
+      const { orders } = await api.get('/api/orders');
+      if (orders.length === 0) {
+        container.innerHTML = '<p class="empty-state">You haven\'t placed any orders yet. <a href="/index.html">Start shopping</a>.</p>';
+        return;
+      }
+
+      container.innerHTML = orders.map((o) => `
+        <div class="order-card">
+          <div class="order-card-header">
+            <strong>Order #${o.id}</strong>
+            <span class="status-badge">${escapeHtml(o.status)}</span>
+            <span style="color:var(--muted); font-size:0.85rem;">${new Date(o.createdAt).toLocaleString()}</span>
+          </div>
+          <ul class="order-items-list">
+            ${o.items.map((i) => `<li>${i.qty} × ${escapeHtml(i.name)} — ${formatMoney(i.subtotal)}</li>`).join('')}
+          </ul>
+          <p style="margin:10px 0 0;"><strong>Total: ${formatMoney(o.total)}</strong></p>
+          <p style="color:var(--muted); font-size:0.85rem; margin:4px 0 0;">Shipping to: ${escapeHtml(o.shippingAddress)}</p>
+        </div>
+      `).join('');
+    } catch (err) {
+      container.innerHTML = `<p class="empty-state">${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  loadOrders();
+</script>
+</body>
+</html>

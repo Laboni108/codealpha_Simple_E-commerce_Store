@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ShopEasy — Products</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="logo" href="/index.html">ShopEasy</a>
+    <nav class="nav-links" id="nav-right"></nav>
+  </div>
+</header>
+
+<main>
+  <h1>All Products</h1>
+  <p class="subtitle">Browse our catalog and add items to your cart.</p>
+
+  <div class="toolbar">
+    <input type="text" id="search-input" class="search-input" placeholder="Search products..." />
+    <select id="category-select">
+      <option value="All">All categories</option>
+    </select>
+  </div>
+
+  <div id="product-grid" class="product-grid">
+    <p class="empty-state">Loading products…</p>
+  </div>
+</main>
+
+<footer class="site-footer">Built with Express.js &amp; vanilla JS — a CodeAlpha e-commerce demo.</footer>
+
+<script src="/js/main.js"></script>
+<script>
+  let allCategories = [];
+
+  async function loadProducts() {
+    const search = document.getElementById('search-input').value.trim();
+    const category = document.getElementById('category-select').value;
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (category && category !== 'All') params.set('category', category);
+
+    const grid = document.getElementById('product-grid');
+    try {
+      const { products, categories } = await api.get('/api/products?' + params.toString());
+
+      if (allCategories.length === 0 && categories.length) {
+        allCategories = categories;
+        const select = document.getElementById('category-select');
+        categories.forEach((c) => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          select.appendChild(opt);
+        });
+      }
+
+      if (products.length === 0) {
+        grid.innerHTML = '<p class="empty-state">No products match your search.</p>';
+        return;
+      }
+
+      grid.innerHTML = products.map((p) => `
+        <div class="product-card">
+          <a href="/product.html?id=${p.id}"><img src="${p.image}" alt="${escapeHtml(p.name)}" /></a>
+          <div class="product-card-body">
+            <span class="category-tag">${escapeHtml(p.category)}</span>
+            <h3><a href="/product.html?id=${p.id}">${escapeHtml(p.name)}</a></h3>
+            <span class="price">${formatMoney(p.price)}</span>
+            <div class="card-actions">
+              <a class="btn btn-outline btn-sm" href="/product.html?id=${p.id}">View</a>
+              <button class="btn btn-sm add-to-cart-btn" data-id="${p.id}" ${p.stock === 0 ? 'disabled' : ''}>
+                ${p.stock === 0 ? 'Out of stock' : 'Add to cart'}
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('.add-to-cart-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          try {
+            await api.post('/api/cart', { productId: Number(btn.dataset.id), qty: 1 });
+            btn.textContent = 'Added ✓';
+            await renderNav();
+            setTimeout(() => { btn.textContent = 'Add to cart'; btn.disabled = false; }, 1200);
+          } catch (err) {
+            alert(err.message);
+            btn.disabled = false;
+          }
+        });
+      });
+    } catch (err) {
+      grid.innerHTML = `<p class="empty-state">Failed to load products: ${escapeHtml(err.message)}</p>`;
+    }
+  }
+
+  document.getElementById('search-input').addEventListener('input', debounce(loadProducts, 300));
+  document.getElementById('category-select').addEventListener('change', loadProducts);
+
+  function debounce(fn, wait) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+  }
+
+  loadProducts();
+</script>
+</body>
+</html>
