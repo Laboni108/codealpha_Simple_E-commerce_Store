@@ -1,57 +1,61 @@
 // routes/auth.js
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const db = require('../db/database');
+const User = require('../db/models/User');
 
 const router = express.Router();
 
 function publicUser(user) {
-  return { id: user.id, name: user.name, email: user.email };
+  return { id: user._id.toString(), name: user.name, email: user.email };
 }
 
 // POST /api/auth/register
-router.post('/register', (req, res) => {
-  const { name, email, password } = req.body || {};
+router.post('/register', async (req, res) => {
+  try {
+    const { name, email, password } = req.body || {};
 
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Name, email, and password are all required.' });
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password are all required.' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) {
+      return res.status(409).json({ error: 'An account with that email already exists.' });
+    }
+
+    const passwordHash = bcrypt.hashSync(password, 10);
+    const user = await User.create({ name: name.trim(), email: normalizedEmail, passwordHash });
+
+    req.session.userId = user._id.toString();
+    res.status(201).json({ user: publicUser(user) });
+  } catch (err) {
+    res.status(500).json({ error: 'Registration failed: ' + err.message });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters.' });
-  }
-
-  const normalizedEmail = String(email).trim().toLowerCase();
-  const existing = db.get('users').find({ email: normalizedEmail }).value();
-  if (existing) {
-    return res.status(409).json({ error: 'An account with that email already exists.' });
-  }
-
-  const id = db.get('nextUserId').value();
-  const passwordHash = bcrypt.hashSync(password, 10);
-  const user = { id, name: name.trim(), email: normalizedEmail, passwordHash, createdAt: new Date().toISOString() };
-
-  db.get('users').push(user).write();
-  db.set('nextUserId', id + 1).write();
-
-  req.session.userId = user.id;
-  res.status(201).json({ user: publicUser(user) });
 });
 
 // POST /api/auth/login
-router.post('/login', (req, res) => {
-  const { email, password } = req.body || {};
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required.' });
-  }
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required.' });
+    }
 
-  const normalizedEmail = String(email).trim().toLowerCase();
-  const user = db.get('users').find({ email: normalizedEmail }).value();
-  if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
-    return res.status(401).json({ error: 'Invalid email or password.' });
-  }
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
 
-  req.session.userId = user.id;
-  res.json({ user: publicUser(user) });
+    req.session.userId = user._id.toString();
+    res.json({ user: publicUser(user) });
+  } catch (err) {
+    res.status(500).json({ error: 'Login failed: ' + err.message });
+  }
 });
 
 // POST /api/auth/logout
@@ -63,11 +67,15 @@ router.post('/logout', (req, res) => {
 });
 
 // GET /api/auth/me
-router.get('/me', (req, res) => {
-  if (!req.session.userId) return res.json({ user: null });
-  const user = db.get('users').find({ id: req.session.userId }).value();
-  if (!user) return res.json({ user: null });
-  res.json({ user: publicUser(user) });
+router.get('/me', async (req, res) => {
+  try {
+    if (!req.session.userId) return res.json({ user: null });
+    const user = await User.findById(req.session.userId);
+    if (!user) return res.json({ user: null });
+    res.json({ user: publicUser(user) });
+  } catch (err) {
+    res.json({ user: null });
+  }
 });
 
 module.exports = router;

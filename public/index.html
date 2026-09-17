@@ -85,7 +85,7 @@
         btn.addEventListener('click', async () => {
           btn.disabled = true;
           try {
-            await api.post('/api/cart', { productId: Number(btn.dataset.id), qty: 1 });
+            await api.post('/api/cart', { productId: btn.dataset.id, qty: 1 });
             btn.textContent = 'Added ✓';
             await renderNav();
             setTimeout(() => { btn.textContent = 'Add to cart'; btn.disabled = false; }, 1200);

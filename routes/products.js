@@ -1,34 +1,44 @@
 // routes/products.js
 const express = require('express');
-const db = require('../db/database');
+const Product = require('../db/models/Product');
 
 const router = express.Router();
 
 // GET /api/products?search=&category=
-router.get('/', (req, res) => {
-  const { search, category } = req.query;
-  let products = db.get('products').value();
+router.get('/', async (req, res) => {
+  try {
+    const { search, category } = req.query;
+    const filter = {};
 
-  if (category && category !== 'All') {
-    products = products.filter((p) => p.category === category);
-  }
-  if (search) {
-    const q = String(search).toLowerCase();
-    products = products.filter(
-      (p) => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
-    );
-  }
+    if (category && category !== 'All') {
+      filter.category = category;
+    }
+    if (search) {
+      const regex = new RegExp(String(search).trim(), 'i'); // case-insensitive partial match
+      filter.$or = [{ name: regex }, { description: regex }];
+    }
 
-  const categories = [...new Set(db.get('products').value().map((p) => p.category))];
-  res.json({ products, categories });
+    const [products, categories] = await Promise.all([
+      Product.find(filter).sort({ createdAt: 1 }),
+      Product.distinct('category'),
+    ]);
+
+    res.json({ products, categories });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load products: ' + err.message });
+  }
 });
 
 // GET /api/products/:id
-router.get('/:id', (req, res) => {
-  const id = Number(req.params.id);
-  const product = db.get('products').find({ id }).value();
-  if (!product) return res.status(404).json({ error: 'Product not found.' });
-  res.json({ product });
+router.get('/:id', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ error: 'Product not found.' });
+    res.json({ product });
+  } catch (err) {
+    // Invalid ObjectId format also lands here
+    res.status(404).json({ error: 'Product not found.' });
+  }
 });
 
 module.exports = router;
