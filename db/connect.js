@@ -1,7 +1,4 @@
-// db/connect.js
-// Opens (and reuses) a single Mongoose connection to MongoDB.
-// Every route/model file just does `require('mongoose')` and uses its models directly —
-// this file's only job is making sure the connection is open before the server starts.
+
 
 require('dotenv').config({ quiet: true });
 const mongoose = require('mongoose');
